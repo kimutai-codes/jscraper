@@ -3,7 +3,8 @@
     "lib": [
       "ES5",
       "ES6",
-      "DOM"
+      "DOM",
+      "ES2017"
     ],
     "outDir": "./dist/",
     "sourceMap": true,
