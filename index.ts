@@ -6,112 +6,66 @@ require("dotenv").config();
   const page = await browser.newPage();
 
   try {
+    console.log("Navigating to the page...");
+
     // Navigate to the page with infinite scroll
     await page.goto(`${process.env.LINK}`, {
       timeout: 60000,
     });
 
+    console.log("Page navigation successful.");
+
     // Function to click the button to change layout
     // Wait for the parent div element to appear
+    console.log("Waiting for the layout button...");
     await page.waitForSelector(".b-adverts-listing-change-view");
 
+    console.log("Layout button found.");
+
     // Click the second child SVG element within the parent div
-    await page
-      .evaluate(() => {
-        // Find the parent div element
-        const parentDiv = document.querySelector(
-          ".b-adverts-listing-change-view",
-        );
-
-        // Check if parentDiv is not null
-        if (parentDiv) {
-          // Find all SVG elements within the parent div
-          const svgElements = parentDiv.querySelectorAll("svg");
-
-          // Check if there are at least two SVG elements
-          if (svgElements.length >= 2) {
-            // Click the second SVG element
-            svgElements[1].dispatchEvent(new MouseEvent("click"));
-          } else {
-            console.error(
-              "There are not enough SVG elements under the parent div.",
-            );
-          }
-        } else {
-          console.error("Parent div element not found.");
-        }
-      })
-      .catch((error) => {
-        console.error("Error occurred during scraping process:", error);
-      });
-
-    // Function to extract details from each list item
-    const extractListItemDetails = async () => {
-      // Loop over each list item
-      const listItems = await page.$$(
-        ".b-advert-listing.js-advert-listing.qa-advert-listing",
+    await page.evaluate(() => {
+      const parentDiv = document.querySelector(
+        ".b-adverts-listing-change-view",
       );
-
-      for (const listItem of listItems) {
-        // Find the child element within the list item and click it
-        await page.evaluate(() => {
-          const childElement = document.querySelector(
-            ".b-list-advert-base.qa-advert-list-item.b-list-advert-base--vip.b-list-advert-base--list",
+      if (parentDiv) {
+        const svgElements = parentDiv.querySelectorAll("svg");
+        if (svgElements.length >= 2) {
+          svgElements[1].dispatchEvent(new MouseEvent("click"));
+        } else {
+          console.error(
+            "There are not enough SVG elements under the parent div.",
           );
-          if (childElement) {
-            // Simulate a click event on the child element
-            const clickEvent = new MouseEvent("click", {
-              bubbles: true,
-              cancelable: true,
-              view: window,
-            });
-            childElement.dispatchEvent(clickEvent);
-          } else {
-            console.error("Child element not found.");
-          }
-        });
-
-        // Wait for navigation to the child page
-        await page.waitForNavigation();
-
-        // Now you can perform actions on the child page, such as extracting details
-
-        // Navigate back to the main page
-        await page.goBack();
-        // Wait for navigation back to the main page
-        await page.waitForNavigation();
+        }
+      } else {
+        console.error("Parent div element not found.");
       }
-    };
+    });
 
-    // Handle login popup
-    await page.waitForSelector('a[href="/login.html"]');
-    await page.click('a[href="/login.html"]');
+    console.log("Clicked layout button.");
 
-    // Wait for the login popup to appear
-    await page.waitForSelector(".b-auth-popup");
-
-    // Click the "Sign in via email or phone" button
-    await page.click(
-      ".h-width-100p.h-bold.fw-button.qa-fw-button.fw-button--type-success.fw-button--size-large",
+    // Function to click the link elements in the parent page and navigate to the child page
+    console.log("Navigating to child pages...");
+    const linkElements = await page.$$(
+      ".b-list-advert-base.qa-advert-list-item.b-list-advert-base--vip.b-list-advert-base--list",
     );
+    console.log(`Found ${linkElements.length} link elements.`);
 
-    // Wait for the email or phone input field to appear
-    await page.waitForSelector(".qa-login-field");
+    for (const linkElement of linkElements) {
+      console.log("Clicking link element...");
+      await Promise.all([
+        linkElement.click(),
+        page.waitForNavigation({ waitUntil: "networkidle0" }),
+      ]);
 
-    // Fill in the email or phone input field
-    await page.type(".qa-login-field", `${process.env.NAME}`);
+      // Now you can perform actions on the child page, such as extracting details
 
-    // Fill in the password input field
-    await page.type(".qa-password-field", `${process.env.PASSWORD}`);
+      console.log("Navigating back to the main page...");
+      await page.goBack();
+      // Wait for navigation back to the main page
+      await page.waitForNavigation({ waitUntil: "networkidle0" });
+    }
 
-    // Click the "SIGN IN" button
-    await page.click(".qa-login-submit");
-
-    // Wait for login to complete
-    await page.waitForNavigation();
-
-    // Extract details from the current page
-    await extractListItemDetails();
+    console.log("Navigation to child pages successful.");
   } catch (error) {
     console.error("Error occurred during scraping process:", error);
   } finally {
