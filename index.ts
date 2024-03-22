@@ -12,8 +12,38 @@ require("dotenv").config();
     });
 
     // Function to click the button to change layout
-    await page.waitForSelector(".b-adverts-listing-change-view__icon");
-    await page.click(".b-adverts-listing-change-view__icon"); // Replace '.your-layout-button-selector' with the actual selector of your button
+    // Wait for the parent div element to appear
+    await page.waitForSelector(".b-adverts-listing-change-view");
+
+    // Click the second child SVG element within the parent div
+    await page
+      .evaluate(() => {
+        // Find the parent div element
+        const parentDiv = document.querySelector(
+          ".b-adverts-listing-change-view",
+        );
+
+        // Check if parentDiv is not null
+        if (parentDiv) {
+          // Find all SVG elements within the parent div
+          const svgElements = parentDiv.querySelectorAll("svg");
+
+          // Check if there are at least two SVG elements
+          if (svgElements.length >= 2) {
+            // Click the second SVG element
+            svgElements[1].dispatchEvent(new MouseEvent("click"));
+          } else {
+            console.error(
+              "There are not enough SVG elements under the parent div.",
+            );
+          }
+        } else {
+          console.error("Parent div element not found.");
+        }
+      })
+      .catch((error) => {
+        console.error("Error occurred during scraping process:", error);
+      });
 
     // Function to extract details from each list item
     const extractListItemDetails = async () => {
