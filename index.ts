@@ -48,39 +48,38 @@ require("dotenv").config();
     // Function to extract details from each list item
     const extractListItemDetails = async () => {
       // Loop over each list item
-      const listItems = await page.$$(".b-list-advert__item-wrapper");
+      const listItems = await page.$$(
+        ".b-advert-listing.js-advert-listing.qa-advert-listing",
+      );
 
       for (const listItem of listItems) {
-        // Click the list item to navigate to the details page
-        await listItem.click();
-
-        try {
-          // Wait for the details to load
-          await page.waitForSelector(".b-list-advert-base__data__header");
-
-          // Scraping seller name
-          const sellerName = await page.$eval(
-            ".b-seller-block__name",
-            (element) => element.textContent?.trim() || "",
+        // Find the child element within the list item and click it
+        await page.evaluate(() => {
+          const childElement = document.querySelector(
+            ".b-list-advert-base.qa-advert-list-item.b-list-advert-base--vip.b-list-advert-base--list",
           );
+          if (childElement) {
+            // Simulate a click event on the child element
+            const clickEvent = new MouseEvent("click", {
+              bubbles: true,
+              cancelable: true,
+              view: window,
+            });
+            childElement.dispatchEvent(clickEvent);
+          } else {
+            console.error("Child element not found.");
+          }
+        });
 
-          // Scraping phone number
-          const phoneNumber = await page.$eval(
-            'a.qa-show-contact[href^="tel:"]',
-            (element) => element.textContent?.trim() || "",
-          );
+        // Wait for navigation to the child page
+        await page.waitForNavigation();
 
-          // Log phone number and seller name
-          console.log("Seller Name:", sellerName);
-          console.log("Phone Number:", phoneNumber);
-        } catch (error) {
-          console.error("Error occurred during scraping:", error);
-        } finally {
-          // Navigate back to the main page
-          await page.goBack();
-          // Wait for navigation
-          await page.waitForNavigation();
-        }
+        // Now you can perform actions on the child page, such as extracting details
+
+        // Navigate back to the main page
+        await page.goBack();
+        // Wait for navigation back to the main page
+        await page.waitForNavigation();
       }
     };
 
