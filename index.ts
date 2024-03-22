@@ -6,21 +6,14 @@ require("dotenv").config();
   const page = await browser.newPage();
 
   try {
-    console.log("Navigating to the page...");
-
     // Navigate to the page with infinite scroll
     await page.goto(`${process.env.LINK}`, {
       timeout: 60000,
     });
 
-    console.log("Page navigation successful.");
-
     // Function to click the button to change layout
     // Wait for the parent div element to appear
-    console.log("Waiting for the layout button...");
     await page.waitForSelector(".b-adverts-listing-change-view");
-
-    console.log("Layout button found.");
 
     // Click the second child SVG element within the parent div
     await page.evaluate(() => {
@@ -41,31 +34,29 @@ require("dotenv").config();
       }
     });
 
-    console.log("Clicked layout button.");
-
     // Function to click the link elements in the parent page and navigate to the child page
-    console.log("Navigating to child pages...");
-    const linkElements = await page.$$(
-      ".b-list-advert-base.qa-advert-list-item.b-list-advert-base--vip.b-list-advert-base--list",
-    );
-    console.log(`Found ${linkElements.length} link elements.`);
+    const clickAndNavigate = async () => {
+      // Find all link elements in the parent page
+      const linkElements = await page.$$(
+        ".b-list-advert-base.qa-advert-list-item.b-list-advert-base--vip.b-list-advert-base--list",
+      );
 
-    for (const linkElement of linkElements) {
-      console.log("Clicking link element...");
-      await Promise.all([
-        linkElement.click(),
-        page.waitForNavigation({ waitUntil: "networkidle0" }),
-      ]);
+      // Loop through each link element and click it
+      for (const linkElement of linkElements) {
+        // Click the link to navigate to the child page
+        await Promise.all([
+          linkElement.click(),
+          page.waitForNavigation({ waitUntil: "networkidle0" }),
+        ]);
 
-      // Now you can perform actions on the child page, such as extracting details
+        // Now you can perform actions on the child page, such as extracting details
 
-      console.log("Navigating back to the main page...");
-      await page.goBack();
-      // Wait for navigation back to the main page
-      await page.waitForNavigation({ waitUntil: "networkidle0" });
-    }
-
-    console.log("Navigation to child pages successful.");
+        // Navigate back to the main page
+        await page.goBack();
+        // Wait for navigation back to the main page
+        await page.waitForNavigation({ waitUntil: "networkidle0" });
+      }
+    };
 
     // Handle login popup
     await page.waitForSelector('a[href="/login.html"]');
@@ -90,8 +81,12 @@ require("dotenv").config();
 
     // Click the "SIGN IN" button
     await page.click(".qa-login-submit");
+
     // Wait for login to complete
     await page.waitForNavigation();
+
+    // Execute the function to click link elements and navigate to child pages
+    await clickAndNavigate();
   } catch (error) {
     console.error("Error occurred during scraping process:", error);
   } finally {
