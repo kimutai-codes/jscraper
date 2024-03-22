@@ -1,8 +1,6 @@
 {
   "compilerOptions": {
     "lib": [
-      "ES5",
-      "ES6",
       "DOM",
       "ES2017"
     ],
@@ -10,9 +8,10 @@
     "sourceMap": true,
     "noImplicitAny": true,
     "module": "CommonJS",
-    "target": "ES6",
+    "target": "ES2017",
     "moduleResolution": "Node",
     "jsx": "react"
+    // "noEmitHelpers": true
   },
   "include": [
     "./src/**/*/"
