@@ -66,9 +66,7 @@ const fetchBookDescription = async (bookUrl: string): Promise<string> => {
   try {
     await page.goto(bookUrl, { waitUntil: "networkidle0" });
     description = await page.evaluate(() => {
-      const descriptionElement = document.querySelector(
-        "#product_description p",
-      );
+      const descriptionElement = document.querySelector("content_inner > p");
       return descriptionElement?.textContent?.trim() || "";
     });
   } catch (error) {

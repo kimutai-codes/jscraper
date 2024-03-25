@@ -8,12 +8,14 @@ require("dotenv").config();
   try {
     // Navigate to the page with infinite scroll
     await page.goto(`${process.env.LINK}`, {
-      timeout: 60000,
+      timeout: 120000,
     });
 
     // Function to click the button to change layout
     // Wait for the parent div element to appear
-    await page.waitForSelector(".b-adverts-listing-change-view");
+    await page.waitForSelector(
+      ".b-advert-listing.js-advert-listing.qa-advert-listing",
+    );
 
     // Click the second child SVG element within the parent div
     await page.evaluate(() => {
@@ -33,30 +35,6 @@ require("dotenv").config();
         console.error("Parent div element not found.");
       }
     });
-
-    // Function to click the link elements in the parent page and navigate to the child page
-    const clickAndNavigate = async () => {
-      // Find all link elements in the parent page
-      const linkElements = await page.$$(
-        ".b-list-advert-base.qa-advert-list-item.b-list-advert-base--vip.b-list-advert-base--list",
-      );
-
-      // Loop through each link element and click it
-      for (const linkElement of linkElements) {
-        // Click the link to navigate to the child page
-        await Promise.all([
-          linkElement.click(),
-          page.waitForNavigation({ waitUntil: "networkidle0" }),
-        ]);
-
-        // Now you can perform actions on the child page, such as extracting details
-
-        // Navigate back to the main page
-        await page.goBack();
-        // Wait for navigation back to the main page
-        await page.waitForNavigation({ waitUntil: "networkidle0" });
-      }
-    };
 
     // Handle login popup
     await page.waitForSelector('a[href="/login.html"]');
@@ -83,13 +61,73 @@ require("dotenv").config();
     await page.click(".qa-login-submit");
 
     // Wait for login to complete
-    await page.waitForNavigation();
+    // console.log("Navigation start.");
+    // await page.screenshot({ path: "debug.png" });
+    // await page.waitForNavigation({ timeout: 120000 });
+    // await page.screenshot({ path: "debug01.png" });
 
+    // Infinite scroll to load all items
+    await autoScroll(page);
+
+    // Scrape data
+    const items = await page.evaluate(() => {
+      const data: { name: string; contactInfo: string }[] = [];
+      const listItems = document.querySelectorAll(
+        // ".b-list-advert__item-wrapper.b-list-advert__item-wrapper--base",
+        ".b-advert-listing.js-advert-listing.qa-advert-listing",
+      );
+      listItems.forEach((item) => {
+        const nameElement = item.querySelector(".b-seller-block__name");
+        const contactButton = item.querySelector(".b-show-contact-content");
+        if (nameElement && contactButton) {
+          const name = (nameElement as HTMLElement).innerText.trim();
+          (contactButton as HTMLElement).click();
+          let contactInfo = "";
+          const contactInfoElement = document.querySelector(
+            ".b-show-contact-content",
+          );
+          if (contactInfoElement) {
+            contactInfo = (contactInfoElement as HTMLElement).innerText.trim();
+          } else {
+            const contactPopover = item.querySelector(
+              ".b-show-contacts-popover__list",
+            );
+            if (contactPopover) {
+              const phones = contactPopover.querySelectorAll(
+                ".b-show-contacts-popover-item__phone.h-flex-1-0.h-mr-15 .adsads",
+              );
+              phones.forEach((phone) => {
+                contactInfo += (phone as HTMLElement).innerText.trim() + "\n";
+              });
+            }
+          }
+          data.push({ name, contactInfo });
+        }
+      });
+      return data;
+    });
     // Execute the function to click link elements and navigate to child pages
-    await clickAndNavigate();
   } catch (error) {
     console.error("Error occurred during scraping process:", error);
   } finally {
     await browser.close();
   }
 })();
+// Function to perform infinite scroll
+async function autoScroll(page: any) {
+  await page.evaluate(async () => {
+    await new Promise<void>((resolve) => {
+      let totalHeight = 0;
+      const distance = 100;
+      const timer = setInterval(() => {
+        const scrollHeight = document.body.scrollHeight;
+        window.scrollBy(0, distance);
+        totalHeight += distance;
+        if (totalHeight >= scrollHeight) {
+          clearInterval(timer);
+          resolve();
+        }
+      }, 100);
+    });
+  });
+}
