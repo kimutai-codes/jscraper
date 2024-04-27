@@ -17,25 +17,6 @@ require("dotenv").config();
       ".b-advert-listing.js-advert-listing.qa-advert-listing",
     );
 
-    // Click the second child SVG element within the parent div
-    await page.evaluate(() => {
-      const parentDiv = document.querySelector(
-        ".b-adverts-listing-change-view",
-      );
-      if (parentDiv) {
-        const svgElements = parentDiv.querySelectorAll("svg");
-        if (svgElements.length >= 2) {
-          svgElements[1].dispatchEvent(new MouseEvent("click"));
-        } else {
-          console.error(
-            "There are not enough SVG elements under the parent div.",
-          );
-        }
-      } else {
-        console.error("Parent div element not found.");
-      }
-    });
-
     // Handle login popup
     await page.waitForSelector('a[href="/login.html"]');
     await page.click('a[href="/login.html"]');
@@ -61,73 +42,102 @@ require("dotenv").config();
     await page.click(".qa-login-submit");
 
     // Wait for login to complete
-    // console.log("Navigation start.");
-    // await page.screenshot({ path: "debug.png" });
+    //FIX:
+    // console.log('Navigation start.');
     // await page.waitForNavigation({ timeout: 120000 });
-    // await page.screenshot({ path: "debug01.png" });
 
-    // Infinite scroll to load all items
-    await autoScroll(page);
+    // Click the second child SVG element within the parent div
+    await page.evaluate(() => {
+      const parentDiv = document.querySelector(
+        ".b-adverts-listing-change-view",
+      );
+      if (parentDiv) {
+        const svgElements = parentDiv.querySelectorAll("svg");
+        if (svgElements.length >= 2) {
+          svgElements[1].dispatchEvent(new MouseEvent("click"));
+        } else {
+          console.error(
+            "There are not enough SVG elements under the parent div.",
+          );
+        }
+      } else {
+        console.error("Parent div element not found.");
+      }
+    });
+
+    // scroll page so we can srape all at once
+    // autoScroll(page);
 
     // Scrape data
-    const items = await page.evaluate(() => {
-      const data: { name: string; contactInfo: string }[] = [];
-      const listItems = document.querySelectorAll(
-        // ".b-list-advert__item-wrapper.b-list-advert__item-wrapper--base",
-        ".b-advert-listing.js-advert-listing.qa-advert-listing",
+    //Await target elements to load
+    await page.waitForSelector(
+      ".b-list-advert__item-wrapper.b-list-advert__item-wrapper--base",
+    );
+
+    const listData = await page.evaluate(async () => {
+      //get an array of all items
+      const items = Array.from(
+        document.querySelectorAll(
+          ".b-list-advert__item-wrapper.b-list-advert__item-wrapper--base",
+        ),
       );
-      listItems.forEach((item) => {
-        const nameElement = item.querySelector(".b-seller-block__name");
-        const contactButton = item.querySelector(".b-show-contact-content");
-        if (nameElement && contactButton) {
-          const name = (nameElement as HTMLElement).innerText.trim();
-          (contactButton as HTMLElement).click();
-          let contactInfo = "";
-          const contactInfoElement = document.querySelector(
-            ".b-show-contact-content",
-          );
-          if (contactInfoElement) {
-            contactInfo = (contactInfoElement as HTMLElement).innerText.trim();
-          } else {
-            const contactPopover = item.querySelector(
-              ".b-show-contacts-popover__list",
-            );
-            if (contactPopover) {
-              const phones = contactPopover.querySelectorAll(
-                ".b-show-contacts-popover-item__phone.h-flex-1-0.h-mr-15 .adsads",
-              );
-              phones.forEach((phone) => {
-                contactInfo += (phone as HTMLElement).innerText.trim() + "\n";
-              });
-            }
-          }
-          data.push({ name, contactInfo });
-        }
-      });
-      return data;
+
+      //loop over the items while scrping the data
+      return Promise.all(
+        items.map(async (item) => {
+          const adUrl =
+            `${process.env.BASE_URL}` +
+            item
+              .querySelector(
+                ".b-list-advert-base.qa-advert-list-item.b-list-advert-base--vip.b-list-advert-base--list",
+              )
+              ?.getAttribute("href");
+          return { adUrl };
+        }),
+      );
     });
-    // Execute the function to click link elements and navigate to child pages
+    console.log("list items :", listData);
+
+    //TODO: Execute the function to click link elements and navigate to child pages
   } catch (error) {
     console.error("Error occurred during scraping process:", error);
   } finally {
     await browser.close();
   }
 })();
+
 // Function to perform infinite scroll
 async function autoScroll(page: any) {
-  await page.evaluate(async () => {
-    await new Promise<void>((resolve) => {
+  try {
+    await page.evaluate(async () => {
+      const screenHeight = window.innerHeight;
+      const distance = screenHeight;
+
       let totalHeight = 0;
-      const distance = 100;
-      const timer = setInterval(() => {
+      let previousHeight = 0;
+      let isLoading = false; // Flag to track loading state
+
+      const scrollInterval = setInterval(async () => {
         const scrollHeight = document.body.scrollHeight;
         window.scrollBy(0, distance);
         totalHeight += distance;
-        if (totalHeight >= scrollHeight) {
-          clearInterval(timer);
-          resolve();
+
+        // Check for loading indicator (replace with your specific selector)
+        isLoading = !!document.querySelector(".loading-spinner");
+
+        if (Math.abs(previousHeight - scrollHeight) < 10 || isLoading) {
+          clearInterval(scrollInterval);
+          return;
         }
+
+        previousHeight = scrollHeight;
+
+        // Wait for content to load after scrolling (adjust timeout)
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }, 100);
     });
-  });
+  } catch (error) {
+    console.error("Error occurred during auto-scrolling:", error);
+    // Implement further error handling here
+  }
 }
