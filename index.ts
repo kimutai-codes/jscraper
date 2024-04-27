@@ -66,7 +66,7 @@ require("dotenv").config();
     });
 
     // scroll page so we can srape all at once
-    // autoScroll(page);
+    autoScroll(page);
 
     // Scrape data
     //Await target elements to load
